@@ -59,9 +59,6 @@ int main(int argc, char *argv[])
    	//char string[7];
    	//strcpy(string, recvString(comsocket));
 		
-   	/* We have to null terminate the received data ourselves */
-   	//buffer[len] = '\0';
-		
    	//printf("ReceivedInt[%d] %d\n", counter, number);
    	//printf("ReceivedDouble[%d] %lf\n\n", counter, dnumber);
    	//printf("ReceivedString %s\n", string);

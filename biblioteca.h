@@ -13,7 +13,6 @@ char* recvString( int socket );
 //Doubles aleatórios
 double randomDouble(double min, double max);
 
-
 //Arquivos de cada cliente
 typedef struct ClientFile_t
 {

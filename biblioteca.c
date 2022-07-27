@@ -326,7 +326,6 @@ void sendClientFiles(char* diretorio, int socket)
 	{
 		if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
 			sendString(dp->d_name, socket);
-
 	}	
 }
 
