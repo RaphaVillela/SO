@@ -47,10 +47,10 @@ int main(int argc, char *argv[])
    		return EXIT_FAILURE;
    }
 	//Enviar a porta do cliente para guardar
-	//sendInt()
+	//sendClientPort(porta, comsocket)
 
 	//Enviar o IP do cliente para guardar
-	//sendInt()
+	//sendClientIP(ip, comsocket)
 
 	sendClientFiles("./client1/",comsocket);
    

@@ -18,7 +18,6 @@ int main(int argc, char *argv[])
         printf("USAGE: server port_number\n");
 
         return EXIT_FAILURE;
-
     }
 
     srand( time( NULL ));
@@ -27,7 +26,7 @@ int main(int argc, char *argv[])
     int id = 0;
 
     //Inicia o primeiro e ultimo cliente da lista como nulos
-    Edges *edges = createList();
+    List *list = createList();
 
     struct sockaddr_in dest; /* socket info about the machine connecting to us */
     struct sockaddr_in serv; /* socket info about our server */

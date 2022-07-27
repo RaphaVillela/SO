@@ -154,7 +154,7 @@ double randomDouble(double min, double max)
 }
 
 //Retirar o cliente da memoria
-void freeClient(ClientList* client)
+void freeClient(Client* client)
 {
 	ClientFile* files = client->data;
 	ClientFile* before;
@@ -171,38 +171,38 @@ void freeClient(ClientList* client)
 }
 
 //Criar lista, aloca par o first e o last NULL(lista ainda vazia)
-Edges* createList()
+List* createList()
 {
-	Edges * edges = (Edges*)calloc(1, sizeof(Edges));
+	List * list = (List*)calloc(1, sizeof(List));
 	
-	return edges;
+	return list;
 }
 
-//Inserir cliente na lista, insere o cliente no final da lista de clientes e no edge last
-void addClient(Edges *edge, ClientList *client, int id)
+//Inserir cliente na lista, insere o cliente no final da lista de clientes
+void addClient(List *list, Client *client, int id)
 {
-	ClientList *lastc = edge->last;
+	Client *lastc = list->last;
 
 	client->id = id;
 	client->next = NULL;
 
 	//Verifica se e o primeiro a ser inserido(vazio)
-	if(edge->first == NULL)
+	if(list->first == NULL)
 	{
-		edge->first = client;
-		edge->last = client;
+		list->first = client;
+		list->last = client;
 
 		return;
 	}
 
 	lastc->next = client;
-	edge->last = client;
+	list->last = client;
 }
 
 //Seleciona um cliente da lista, caso nao haja, retorna NULL
-ClientList* selectClient(int id, Edges *edges)
+Client* selectClient(int id, List *list)
 {
-	ClientList *temp = edges->first;
+	Client *temp = list->first;
 
 	//Procura o cliente
 	while(temp != NULL)
@@ -217,10 +217,10 @@ ClientList* selectClient(int id, Edges *edges)
 }
 
 //Deleta um cliente da lista, caso não exista, retorna 0, caso tenha sucesso, retorna 1
-int deleteClient(int id, Edges *edges)
+int deleteClient(int id, List *list)
 {
-	ClientList *temp = edges->first;
-	ClientList *before = NULL;
+	Client *temp = list->first;
+	Client *before = NULL;
 
 	//Procura o cliente
 	while(temp != NULL)
@@ -236,24 +236,24 @@ int deleteClient(int id, Edges *edges)
 	if(before == NULL)
 	{
 		//Se so existe 1 na lista
-		if(edges->first == edges->last)
+		if(list->first == list->last)
 		{
-			edges->first = NULL;
-			edges->last = NULL;
+			list->first = NULL;
+			list->last = NULL;
 
 			freeClient(temp);
 			return 1;
 		}
 
-		edges->first = temp->next;
+		list->first = temp->next;
 		freeClient(temp);
 		return 1;
 	}
 
 	//Se for o ultimo da lista
-	if(temp->next == edges->last)
+	if(temp->next == list->last)
 	{
-		edges->last = before;
+		list->last = before;
 		before->next = NULL;
 		freeClient(temp);
 		return 1;
@@ -268,9 +268,9 @@ int deleteClient(int id, Edges *edges)
 }
 
 //Procura o cliente pelo nome do arquivo, retorna nulo, caso nao encontre
-ClientList* searchClientByFile(Edges* edges, char* fileName)
+Client* searchClientByFile(List* list, char* fileName)
 {
-	ClientList* client = edges->first;
+	Client* client = list->first;
 	ClientFile* current;
 	int finish = 0;
 
@@ -297,6 +297,7 @@ ClientList* searchClientByFile(Edges* edges, char* fileName)
 	return client;
 }
 
+//Envia os arquivos do cliente pelo socket
 void sendClientFiles(char* diretorio, int socket)
 {
 	DIR *dir;
@@ -329,6 +330,7 @@ void sendClientFiles(char* diretorio, int socket)
 	}	
 }
 
+//Recebe os arquivos enviados do cliente pelo socket
 ClientFile* recvClientFiles(int socket)
 {
 	ClientFile *lastFile =  NULL;
@@ -346,4 +348,28 @@ ClientFile* recvClientFiles(int socket)
 	}
 	
 	return lastFile;
+}
+
+//Envia a porta do cliente pelo socket
+void sendClientPort(unsigned int port, int socket)
+{
+	sendInt(port, socket);
+}
+
+//Recebe a porta do cliente pelo socket
+unsigned int recvClientPort(int socket)
+{
+	return recvInt(socket);
+}
+
+//Envia o IP do cliente pelo socket
+void sendClientIP(unsigned int ip, int socket)
+{
+	sendInt(ip, socket);
+}
+
+//Recebe o IP do cliente pelo socket
+unsigned int recvClientIP(int socket)
+{
+	return recvInt(socket);
 }
