@@ -8,7 +8,114 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <pthread.h>
 #include "biblioteca.h"
+
+typedef struct param_t
+{
+    int id;
+    int socket;
+    List *list;
+
+}Parametro;
+
+void commandList(int socket, List*list)
+{
+    Client* client = list->first;
+    int count = 0;
+
+    while(client != NULL)
+    {
+        count++;
+        client = client->next;
+    }
+
+    sendInt(count, socket);
+    client = list->first;
+
+    while(client != NULL)
+    {
+        sendClient(client, socket);
+        client = client->next;
+    }
+    
+}
+
+void printList(List *list)
+{
+    Client* client = list->first;
+
+    while(client != NULL)
+    {
+        ClientFile *file = client->data;
+        printf("Cliente %d:\n", client->id);
+        while(file != NULL)
+        {
+            printf(" %s\n", file->name);
+            file = file->next;
+        }
+        client = client->next;
+    }
+}
+
+void commandClient(int socket, List *list, int id)
+{
+    Client* client = recvClient(socket);
+    client->id = id;
+    addClient(list, client);
+
+    printList(list);
+}
+
+//Lista de funcoes que podem ser pedidas por um cliente (get, send, del, list, stats, exit)
+void* functionList(void* arg)
+{
+    Parametro *p = (Parametro*)arg;
+
+    printf("Entrei threaaad\n");
+
+    while(1)
+    {
+        int command = recvInt(p->socket);
+
+        switch(command)
+        {
+            //TODO: implementar comando de receber infos do cliente(2)
+            case COMMAND_CLIENT:
+                commandClient(p->socket, p->list, p->id);
+                break;
+
+            case COMMAND_EXIT: //exit
+                
+                break;
+
+            case COMMAND_GET: //get
+                
+                break;
+
+            case COMMAND_SEND: //send
+                
+                break;
+
+            case COMMAND_DELETE: //del
+                
+                break;
+
+            case COMMAND_LIST: //list
+                commandList(p->socket, p->list);
+                break;
+
+            case COMMAND_STATS: //stats
+                
+                break;
+
+            default: //invalido
+                
+                break;
+        }
+    }
+    return (void*)0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -49,23 +156,23 @@ int main(int argc, char *argv[])
 
     printf("Server is waiting for connections on port:%s\n", argv[ 1 ] );
 
-    int comsocket = accept(mysocket, (struct sockaddr *)&dest, &socksize);
+    while(1)
+    { 
+        int comsocket = accept(mysocket, (struct sockaddr *)&dest, &socksize);
 
-    printf("Incoming connection from %s - sending welcome\n", inet_ntoa(dest.sin_addr));
+        pthread_t thread;
 
-	//Receber a porta do cliente para guardar
-	//recvInt()
+        Parametro *p = (Parametro*)calloc(sizeof(Parametro), 1);
+        p->socket = comsocket;
+        p->list = list;
+        p->id = id;
 
-	//Receber o IP do cliente para guardar
-	//recvInt()
+        pthread_create( &thread, NULL, functionList, p);
 
-    ClientFile * files = recvClientFiles(comsocket);
+        printf("Incoming connection from %s - sending welcome\n", inet_ntoa(dest.sin_addr));
 
-	while(files != NULL)
-	{
-		printf("* %s\n", files->name);
-		files = files->next;
-	}
+        id++;
+    }
 
 	//Adicionar o cliente na lista
 

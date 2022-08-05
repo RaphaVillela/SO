@@ -14,6 +14,65 @@
 
 #define MAXRCVLEN 5000
 
+//Fica no cliente para o usuario digitar o comando desejavel
+void whichFunction(int socket)
+{
+	char *command = (char*)calloc(MAX_LENGTH, sizeof(char));
+
+	while(1)
+	{
+		printf("-");
+
+		scanf("%s", command);
+
+		if(strcmp(command, "exit") == 0)
+		{
+			sendInt(COMMAND_EXIT, socket);
+
+			break;
+		}
+		else if(strcmp(command, "get") == 0)
+		{
+			sendInt(COMMAND_GET, socket);
+		}
+		else if(strcmp(command, "send") == 0)
+		{
+			sendInt(COMMAND_SEND, socket);
+		}
+		else if((strcmp(command, "del") == 0) || (strcmp(command, "delete") == 0))
+		{
+			sendInt(COMMAND_DELETE, socket);
+		}
+		else if(strcmp(command, "list") == 0)
+		{
+			sendInt(COMMAND_LIST, socket);
+
+			int n = recvInt(socket);
+
+			for(int i = 0; i < n; i++)
+			{
+				Client* client = recvClient(socket);
+
+				ClientFile *file = client->data;
+				printf("Cliente %d:\n", client->id);
+				while(file != NULL)
+				{
+					printf(" %s\n", file->name);
+					file = file->next;
+				}
+			}
+		}
+		else if(strcmp(command, "stats") == 0)
+		{
+			sendInt(COMMAND_STATS, socket);
+		}
+		else
+		{
+			printf("comando inválido\n");
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	//Porta
@@ -46,13 +105,20 @@ int main(int argc, char *argv[])
 
    		return EXIT_FAILURE;
    }
-	//Enviar a porta do cliente para guardar
-	//sendClientPort(porta, comsocket)
 
-	//Enviar o IP do cliente para guardar
-	//sendClientIP(ip, comsocket)
+	//TODO: mandar infos do cliente ao server (1)
+	Client *novo = (Client*)calloc(sizeof(Client) , 1);
+	novo->ip = 1;
+	novo->porta = 2222;
+	novo->data =  (ClientFile*)calloc(sizeof(ClientFile), 1);
+	novo->nFiles = countFiles("./client1/", novo);
 
-	sendClientFiles("./client1/",comsocket);
+	sendInt(COMMAND_CLIENT, comsocket);
+	sendClient(novo, comsocket);
+
+  	whichFunction(comsocket);
+
+	//sendClientFiles("./client1/",comsocket);
    
    	//int number = recvInt(comsocket);
    	//double dnumber = recvDouble(comsocket);

@@ -147,6 +147,33 @@ char* recvString(int socket)
 	return string;
 }
 */
+
+//Vai enviar os dados do Cliente
+void sendClient(Client *client, int socket)
+{
+	printf("Inicio\n");
+	sendInt (client->id, socket); // envia id
+	sendInt (client->nFiles, socket); //envia a quantidade de arquivos
+	sendInt (client->porta, socket); //
+	sendInt (client->ip, socket); 
+	sendClientFiles(client->data, socket); 
+	printf("Final\n");
+}
+
+//Vai enviar os dados do Cliente
+Client* recvClient(int socket)
+{
+	Client * client = calloc(sizeof(Client*), 1);
+
+	client->id = recvInt (socket); // envia id
+	client->nFiles = recvInt (socket); //envia a quantidade de arquivos
+	client->porta = recvInt (socket); 
+	client->ip = recvInt (socket); 
+	client->data = recvClientFiles(socket); 
+
+	return client;
+}
+
 //Doubles aleatórios
 double randomDouble(double min, double max)
 {
@@ -179,11 +206,10 @@ List* createList()
 }
 
 //Inserir cliente na lista, insere o cliente no final da lista de clientes
-void addClient(List *list, Client *client, int id)
+void addClient(List *list, Client *client)
 {
 	Client *lastc = list->last;
 
-	client->id = id;
 	client->next = NULL;
 
 	//Verifica se e o primeiro a ser inserido(vazio)
@@ -298,35 +324,30 @@ Client* searchClientByFile(List* list, char* fileName)
 }
 
 //Envia os arquivos do cliente pelo socket
-void sendClientFiles(char* diretorio, int socket)
+void sendClientFiles(ClientFile* cf, int socket)
 {
-	DIR *dir;
-	struct dirent *dp;
-	
-	//Abrir o diretório
-	if((dir = opendir(diretorio)) == NULL)
-	{
-		printf("Cannot open it\n");
-		exit(1);
-	}
+	printf("Entrou na func\n");
 
+	ClientFile* file = cf;
 	int count = 0;
-	
-	while((dp = readdir (dir)) != NULL)
+	printf("1 while %s\n", cf->name);
+	while(file != NULL)
 	{
-		if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
-			count++;
+		count++;
+		file = file->next;
 	}
-	
-	sendInt(count, socket);
 
-	dir = opendir(diretorio);
+	sendInt(count, socket);
+	printf("Saiu while qtd %d\n", count);
+
+	file = cf;
 
 	//Enviar o que tem no diretório
-	while((dp = readdir (dir)) != NULL)
+	while(file != NULL)
 	{
-		if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
-			sendString(dp->d_name, socket);
+		sendString(file->name, socket);
+
+		file = file->next;
 	}	
 }
 
@@ -348,6 +369,51 @@ ClientFile* recvClientFiles(int socket)
 	}
 	
 	return lastFile;
+}
+
+//Conta quantos arquivos existem no cliente e adiciona eles ao cliente
+int countFiles(char* diretorio, Client *novo)
+{
+	DIR *dir;
+	struct dirent *dp;
+	
+	//Abrir o diretório
+	if((dir = opendir(diretorio)) == NULL)
+	{
+		printf("Cannot open it\n");
+		exit(1);
+	}
+
+	int count = 0;
+
+	ClientFile *first = NULL;
+	ClientFile *last = NULL;
+	
+	while((dp = readdir (dir)) != NULL)
+	{
+		if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
+		{
+			ClientFile *aux = (ClientFile*)calloc(sizeof(ClientFile), 1);			
+
+			aux->name = (char*)calloc(sizeof(dp->d_name), 1);
+			aux->next = NULL;
+			strcpy(aux->name, dp->d_name);
+			if(first == NULL)
+				first = aux;
+			if(last != NULL)
+			{
+				last->next = aux;
+				last = aux;
+			}
+			else
+				last = aux;
+				
+			count++;
+		}
+	}
+	novo->data = first;
+
+	return count;
 }
 
 //Envia a porta do cliente pelo socket
