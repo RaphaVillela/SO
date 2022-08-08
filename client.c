@@ -14,7 +14,7 @@
 
 #define MAXRCVLEN 5000
 
-//Fica no cliente para o usuario digitar o comando desejavel
+//Fica no cliente para o usuario digitar o comando desejado
 void whichFunction(int socket)
 {
 	char *command = (char*)calloc(MAX_LENGTH, sizeof(char));
@@ -82,6 +82,11 @@ int main(int argc, char *argv[])
 
 		return EXIT_FAILURE;
 	}
+
+	//Argumentos
+	char *diretorio = argv[2]; //diretorio
+
+	printf("%s \n", diretorio);
     
     srand( time( NULL ));
 
@@ -106,12 +111,13 @@ int main(int argc, char *argv[])
    		return EXIT_FAILURE;
    }
 
-	//TODO: mandar infos do cliente ao server (1)
+	//Pegar os dados do cliente para depois enviar para o servidor
 	Client *novo = (Client*)calloc(sizeof(Client) , 1);
 	novo->ip = 1;
 	novo->porta = 2222;
 	novo->data =  (ClientFile*)calloc(sizeof(ClientFile), 1);
-	novo->nFiles = countFiles("./client1/", novo);
+	novo->nFiles = countFiles(diretorio, novo);
+	//"./client1/"
 
 	sendInt(COMMAND_CLIENT, comsocket);
 	sendClient(novo, comsocket);

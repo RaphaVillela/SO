@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include "biblioteca.h"
 
+//Estrutura que guarda id, socket e o primeiro e ultimo cliente da lista, serve de parametro para a função das funções
 typedef struct param_t
 {
     int id;
@@ -41,6 +42,7 @@ void commandList(int socket, List*list)
     
 }
 
+//Printa a lista de clientes e deus arquivos
 void printList(List *list)
 {
     Client* client = list->first;
@@ -72,8 +74,6 @@ void* functionList(void* arg)
 {
     Parametro *p = (Parametro*)arg;
 
-    printf("Entrei threaaad\n");
-
     while(1)
     {
         int command = recvInt(p->socket);
@@ -86,7 +86,14 @@ void* functionList(void* arg)
                 break;
 
             case COMMAND_EXIT: //exit
-                
+                int ver = deleteClient(p->id, p->list);
+
+                if(ver == 1)
+                    printf("Client de id %d retirado com sucesso!\n", p->id);
+                else if(ver == 0)
+                    printf("Client de id %d não encontrado!\n", p->id);
+                else
+                    printf("Erro desconhecido!\n");
                 break;
 
             case COMMAND_GET: //get
@@ -98,7 +105,7 @@ void* functionList(void* arg)
                 break;
 
             case COMMAND_DELETE: //del
-                
+                //Usar delete(pathOfFile)
                 break;
 
             case COMMAND_LIST: //list
@@ -156,6 +163,7 @@ int main(int argc, char *argv[])
 
     printf("Server is waiting for connections on port:%s\n", argv[ 1 ] );
 
+    //Loop infinito do servidor a espera de uma conexão com um socket
     while(1)
     { 
         int comsocket = accept(mysocket, (struct sockaddr *)&dest, &socksize);

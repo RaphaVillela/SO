@@ -151,25 +151,23 @@ char* recvString(int socket)
 //Vai enviar os dados do Cliente
 void sendClient(Client *client, int socket)
 {
-	printf("Inicio\n");
 	sendInt (client->id, socket); // envia id
 	sendInt (client->nFiles, socket); //envia a quantidade de arquivos
-	sendInt (client->porta, socket); //
-	sendInt (client->ip, socket); 
-	sendClientFiles(client->data, socket); 
-	printf("Final\n");
+	sendInt (client->porta, socket); //envia a porta 
+	sendInt (client->ip, socket); //envia o ip
+	sendClientFiles(client->data, socket); //envia os dados(nome dos arquivos)
 }
 
-//Vai enviar os dados do Cliente
+//Vai receber os dados do Cliente e retornar o cliente com os dados preenchidos
 Client* recvClient(int socket)
 {
 	Client * client = calloc(sizeof(Client*), 1);
 
-	client->id = recvInt (socket); // envia id
-	client->nFiles = recvInt (socket); //envia a quantidade de arquivos
-	client->porta = recvInt (socket); 
-	client->ip = recvInt (socket); 
-	client->data = recvClientFiles(socket); 
+	client->id = recvInt (socket); // recebe id
+	client->nFiles = recvInt (socket); //recebe a quantidade de arquivos
+	client->porta = recvInt (socket); //recebe a porta
+	client->ip = recvInt (socket); //recebe o ip
+	client->data = recvClientFiles(socket); //recebe os dados(nome dos arquivos)
 
 	return client;
 }
@@ -183,21 +181,26 @@ double randomDouble(double min, double max)
 //Retirar o cliente da memoria
 void freeClient(Client* client)
 {
-	ClientFile* files = client->data;
+	/*ClientFile* files = client->data;
 	ClientFile* before;
-
-	while(files != NULL)
+	
+	while(files->next != NULL)
 	{
+		printf("file name: %s\n", files->name);
 		before = files;
 		files = files->next;
 		
 		free(before);	
 	}
-
+	printf("arquivo: %s\n", files->next);
+	
+	printf("Saiu while freeclient\n");
+	*/
 	free(client);
+
 }
 
-//Criar lista, aloca par o first e o last NULL(lista ainda vazia)
+//Criar lista, aloca para o first e o last NULL(lista ainda vazia)
 List* createList()
 {
 	List * list = (List*)calloc(1, sizeof(List));
@@ -212,7 +215,7 @@ void addClient(List *list, Client *client)
 
 	client->next = NULL;
 
-	//Verifica se e o primeiro a ser inserido(vazio)
+	//Verifica se é o primeiro a ser inserido(vazio)
 	if(list->first == NULL)
 	{
 		list->first = client;
@@ -274,21 +277,19 @@ int deleteClient(int id, List *list)
 		list->first = temp->next;
 		freeClient(temp);
 		return 1;
-	}
-
-	//Se for o ultimo da lista
-	if(temp->next == list->last)
+	}else if(temp->next == list->last) //Se for o ultimo da lista
 	{
 		list->last = before;
 		before->next = NULL;
 		freeClient(temp);
 		return 1;
+	}else
+	{
+		//Se nao entrou em nenhum dos anteriores, esta no meio da lista
+		before->next = temp->next;
+		freeClient(temp);
+		return 1;
 	}
-
-	//Se nao entrou em nenhum dos anteriores, esta no meio da lista
-	before->next = temp->next;
-	freeClient(temp);
-	return 1;
 
 	return 0;
 }
@@ -326,11 +327,9 @@ Client* searchClientByFile(List* list, char* fileName)
 //Envia os arquivos do cliente pelo socket
 void sendClientFiles(ClientFile* cf, int socket)
 {
-	printf("Entrou na func\n");
-
 	ClientFile* file = cf;
 	int count = 0;
-	printf("1 while %s\n", cf->name);
+
 	while(file != NULL)
 	{
 		count++;
@@ -338,7 +337,6 @@ void sendClientFiles(ClientFile* cf, int socket)
 	}
 
 	sendInt(count, socket);
-	printf("Saiu while qtd %d\n", count);
 
 	file = cf;
 
@@ -371,7 +369,7 @@ ClientFile* recvClientFiles(int socket)
 	return lastFile;
 }
 
-//Conta quantos arquivos existem no cliente e adiciona eles ao cliente
+//Conta quantos arquivos existem no cliente e adiciona eles ao cliente, ligando na lista
 int countFiles(char* diretorio, Client *novo)
 {
 	DIR *dir;
