@@ -80,12 +80,13 @@ void* functionList(void* arg)
 
         switch(command)
         {
-            //TODO: implementar comando de receber infos do cliente(2)
             case COMMAND_CLIENT:
+
                 commandClient(p->socket, p->list, p->id);
                 break;
 
-            case COMMAND_EXIT: //exit
+            case COMMAND_EXIT: ;//exit
+
                 int ver = deleteClient(p->id, p->list);
 
                 if(ver == 1)
@@ -170,7 +171,7 @@ int main(int argc, char *argv[])
 
         pthread_t thread;
 
-        Parametro *p = (Parametro*)calloc(sizeof(Parametro), 1);
+        Parametro *p = (Parametro*)calloc(1, sizeof(Parametro));
         p->socket = comsocket;
         p->list = list;
         p->id = id;

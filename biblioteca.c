@@ -161,7 +161,7 @@ void sendClient(Client *client, int socket)
 //Vai receber os dados do Cliente e retornar o cliente com os dados preenchidos
 Client* recvClient(int socket)
 {
-	Client * client = calloc(sizeof(Client*), 1);
+	Client * client = calloc(1, sizeof(Client));
 
 	client->id = recvInt (socket); // recebe id
 	client->nFiles = recvInt (socket); //recebe a quantidade de arquivos
@@ -181,23 +181,20 @@ double randomDouble(double min, double max)
 //Retirar o cliente da memoria
 void freeClient(Client* client)
 {
-	/*ClientFile* files = client->data;
-	ClientFile* before;
+	ClientFile* files = client->data;
+	ClientFile* before = NULL;
 	
-	while(files->next != NULL)
+	while(files != NULL)
 	{
-		printf("file name: %s\n", files->name);
+
 		before = files;
 		files = files->next;
 		
-		free(before);	
+		free(before->name);
+		free(before);
 	}
-	printf("arquivo: %s\n", files->next);
 	
-	printf("Saiu while freeclient\n");
-	*/
 	free(client);
-
 }
 
 //Criar lista, aloca para o first e o last NULL(lista ainda vazia)
@@ -250,6 +247,7 @@ int deleteClient(int id, List *list)
 {
 	Client *temp = list->first;
 	Client *before = NULL;
+	printf("valor de temp: %d\n", temp->id);
 
 	//Procura o cliente
 	while(temp != NULL)
@@ -267,18 +265,24 @@ int deleteClient(int id, List *list)
 		//Se so existe 1 na lista
 		if(list->first == list->last)
 		{
+			printf("valor de temp: %p\n", temp);
+			printf("primeiro e unico\n");
 			list->first = NULL;
 			list->last = NULL;
-
+			freeClient(temp);
+			return 1;
+		}else
+		{
+			printf("primeiro apenas\n");
+			list->first = temp->next;
+			printf("Entrar no free\n");
 			freeClient(temp);
 			return 1;
 		}
 
-		list->first = temp->next;
-		freeClient(temp);
-		return 1;
 	}else if(temp->next == list->last) //Se for o ultimo da lista
 	{
+		printf("ultimo\n");
 		list->last = before;
 		before->next = NULL;
 		freeClient(temp);
@@ -286,6 +290,7 @@ int deleteClient(int id, List *list)
 	}else
 	{
 		//Se nao entrou em nenhum dos anteriores, esta no meio da lista
+		printf("meio\n");
 		before->next = temp->next;
 		freeClient(temp);
 		return 1;
@@ -391,9 +396,9 @@ int countFiles(char* diretorio, Client *novo)
 	{
 		if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
 		{
-			ClientFile *aux = (ClientFile*)calloc(sizeof(ClientFile), 1);			
+			ClientFile *aux = (ClientFile*)calloc(1, sizeof(ClientFile));			
 
-			aux->name = (char*)calloc(sizeof(dp->d_name), 1);
+			aux->name = (char*)calloc(1, sizeof(dp->d_name));
 			aux->next = NULL;
 			strcpy(aux->name, dp->d_name);
 			if(first == NULL)

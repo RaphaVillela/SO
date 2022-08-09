@@ -112,10 +112,10 @@ int main(int argc, char *argv[])
    }
 
 	//Pegar os dados do cliente para depois enviar para o servidor
-	Client *novo = (Client*)calloc(sizeof(Client) , 1);
+	Client *novo = (Client*)calloc(1, sizeof(Client));
 	novo->ip = 1;
 	novo->porta = 2222;
-	novo->data =  (ClientFile*)calloc(sizeof(ClientFile), 1);
+	novo->data =  (ClientFile*)calloc(1, sizeof(ClientFile));
 	novo->nFiles = countFiles(diretorio, novo);
 	//"./client1/"
 
