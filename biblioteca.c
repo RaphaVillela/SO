@@ -308,7 +308,6 @@ Client* searchClientByFile(List* list, char* fileName)
 {
 	Client* client = list->first;
 	ClientFile* current;
-	int finish = 0;
 
 	//Percorrer os clientes
 	while(client != NULL)
@@ -320,17 +319,14 @@ Client* searchClientByFile(List* list, char* fileName)
 		{
 			if(strcmp(current->name, fileName) == 0)
 			{
-				finish = 1;
-				break;
+				return client;
 			}
 			current = current->next;
 		}
-
-		if(finish == 1)
-			break;
+		client = client->next;
 	}
 
-	return client;
+	return NULL;
 }
 
 //Procura o client pela id dele
@@ -442,29 +438,15 @@ int countFiles(char* diretorio, Client *novo)
 }
 
 //Recebe o nome de arquivo, id do client que vai ter o arquivo apagado e a lista para procurar o cliente e apagar
-void deleteFile(char *file_name, char * dir, ClientFile * file)
+void deleteFile(char *file_name, char * dir)
 {
-	//Procura o arquivo no cliente
-	while(file != NULL)
-	{
-		if(strcmp(file->name, file_name))
-			break;
-
-		file = file->next;
-	}
-	//Se não encontrar o arquivo
-	if(file == NULL)
-	{
-		printf("Arquivo não encontrado\n");
-		return;
-	}
 	char *path = calloc(1, (strlen(file_name)+ strlen(dir) + 2));
-
-	char * barra = calloc(1, sizeof(char));
 
 	//Pegar o caminho do arquivo
 	strcat(path, dir);
 	strcat(path, file_name);
+
+	printf("path = %s\n", path);
 
 	if(remove(path) == 0)
 		printf("Arquivo deletado com sucesso!\n");
@@ -474,48 +456,58 @@ void deleteFile(char *file_name, char * dir, ClientFile * file)
 }
 
 //Remove o arquivo da lista do servidor
-void removeFileFromList(char *file_name, Client *client, List *list)
+int removeFileFromList(char *file_name, List *list)
 {
-	Client *tempclient = list->first;
 
-	while(tempclient != NULL)
+	Client* client = list->first;
+	ClientFile* current;
+
+	//Percorrer os clientes
+	while(client != NULL)
 	{
-		if(tempclient == client)
-			break;
+		current = client->data;
+		ClientFile *before = NULL;
+		//Percorre os arquivos do cliente, caso encontre coloca finish para 1 e termina
+		while(current != NULL)
+		{
+			if(strcmp(current->name, file_name) == 0)
+			{
+				//Verifica se foi era o primeiro da lista
+				if(before == NULL)
+				{
+					//Se so existe 1 na lista
+					if(current->next == NULL)
+					{
+						client->data = NULL;
+
+						return 1;
+					}else
+					{
+						client->data = current->next;
+
+						return 1;
+					}
+
+				}else if(current->next == NULL) //Se for o ultimo da lista
+				{
+					before->next = NULL;
+
+					return 1;
+				}else
+				{
+					//Se nao entrou em nenhum dos anteriores, esta no meio da lista
+					before->next = current->next;
+
+					return 1;
+				}
+			}
+			before = current;
+			current = current->next;
+		}
+		client = client->next;
 	}
 
-	ClientFile *file = tempclient->data;
-	ClientFile *before = NULL;
-
-	while(file != NULL)
-	{
-		if(strcmp(file_name, file->name) == 0)
-			break;
-
-		before = file;
-		file = file->next;
-	}
-
-	//Se não encontrar o arquivo
-	if(file == NULL)
-	{
-		printf("Arquivo não encontrado\n");
-		return;
-	}
-
-	//Verifica se é o primeiro da lista
-	if(before == NULL)
-		client->data = file->next;
-	else if (file->next == NULL) //Verifica se é o ultimo
-		before->next = NULL;
-	else
-		before->next = file->next;
-
-	free(file);
-
-	printf("Arquivo %s retirado do cliente %d\n", file_name, tempclient->id);
-
-	free(tempclient);
+	return 0;
 }
 
 //Le e escreve no buffer o conteudo da linha do terminal

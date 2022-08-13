@@ -25,6 +25,7 @@ typedef struct clientServer_arg_
 	int port;
 	int server_socket;
 	char *diretorio;
+	Client *client;
 
 }clientServer_arg;
 
@@ -55,38 +56,40 @@ void *whatClientDo(void* ptr) //socket
 				char *file_name = recvString(arg->client_socket);
 
 				//Deletar chamando deleteFile
-				deleteFile(file_name, arg->diretorio , client->data);
+				deleteFile(file_name, arg->diretorio);
+
+				printf("Saiu do delete FIle\n");
 
 				//Deletar da list no servidor
 				sendInt(DELETE_LIST, arg->server_socket);
 				sendString(file_name, arg->server_socket);
-				sendClient(client, arg->server_socket);
 
 				break;
 			
 			case CLIENT_GET:
 
-				char* file_name = recvString(arg->socket); //Receber o nome do arquivo a ser enviado
+				char* gfile_name = recvString(arg->client_socket); //Receber o nome do arquivo a ser enviado
 				
 				//Abrir arquivo para leitura
 				FILE *fptr;
 				
-				char* path = (char *)calloc( 1, (strlen(file_name) + strlen(arg->diretorio) + 1);
+				char* path = (char *)calloc( 1, (strlen(gfile_name) + strlen(arg->diretorio) + 1));
 				strcpy(path, arg->diretorio);
-				strcat(path, file_name);
+				strcat(path, gfile_name);
 				
 				if((fptr = fopen(path, "r")) == NULL)
 				{
-					printf("Erro ao abrir arquivo %s\n", file_name);
+					printf("Erro ao abrir arquivo %s\n", gfile_name);
 					break;
 				}
 				
 				char* block = (char*)calloc(1, sizeof(BLOCK_SIZE)); //Um bloco
 				int counter = 0;
+				char c;
 				//Em um loop vai pegar as informações do arquivo e enviar para o outro cliente
-				do
+				/*
 				{
-					char *c = fgetc(fptr);
+					c = fgetc(fptr);
 					
 					counter++;
 					strcat(block, c);
@@ -98,7 +101,7 @@ void *whatClientDo(void* ptr) //socket
 						block = NULL;
 					}
 					
-				}while(c != EOF);
+				}while(c != EOF);*/
 				
 				//Caso tenha sobrado algo com tamanho menor que BLOCK_SIZE envia aqui
 				if(counter != 0)
@@ -149,9 +152,10 @@ void *clientServer(void* ptr)
 		pthread_t *thread_client = calloc(1, sizeof(pthread_t));
 
 		clientCommand_arg *ptr = (clientCommand_arg*)calloc(1, sizeof(clientCommand_arg));
-		ptr->client_socket = mysocket; //socket cliente - cliente
+		ptr->client_socket = clientSocket; //socket cliente - cliente
 		ptr->server_socket = arg->server_socket; // socket client- servidor
 		ptr->diretorio = arg->diretorio;
+		ptr->client = arg->client;
 
 		pthread_create(thread_client, NULL, whatClientDo, ptr);
 	}
@@ -213,7 +217,7 @@ int whichFunction(int server_socket)
 				printf("Socket criado\n");
 				memset(&dest, 0, sizeof(dest));                /* zero the struct */
 				dest.sin_family = AF_INET;
-				dest.sin_addr.s_addr = ip; /* set destination IP number - localhost, 127.0.0.1*/
+				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* set destination IP number - localhost, 127.0.0.1*/
 				dest.sin_port =  porta ; /* set destination port number */
 				printf("Iniciar conexao. ip: %d  porta: %d\n", ip, porta);
 				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
@@ -252,10 +256,12 @@ int whichFunction(int server_socket)
 				break;
 			}
 
-			char *file_name = calloc(1, sizeof(copy));
+			char *file_name = strtok(copy, SPACE);
 			printf("Vai entrar no while\n");
-			while((file_name = strtok(copy, SPACE)) != NULL)
+			while(file_name != NULL)
 			{
+				file_name[strlen(file_name)-1] = '\0';
+
 				printf("Dentro do while, fileName: %s\n", file_name);
 				sendInt(COMMAND_DELETE, server_socket); //Entra no comando delete do servidor
 				sendString(file_name, server_socket);
@@ -268,19 +274,20 @@ int whichFunction(int server_socket)
 				int ip = recvInt(server_socket);
 				int porta = recvInt(server_socket);
 				printf("Pegou ip e porta\n");
-				//Se conectar ao cliente
+				 
+
 				int client_socket;
 				struct sockaddr_in dest;
 
 				client_socket = socket(AF_INET, SOCK_STREAM, 0);
-				printf("Socket criado\n");
+
 				memset(&dest, 0, sizeof(dest));                /* zero the struct */
 				dest.sin_family = AF_INET;
-				dest.sin_addr.s_addr = ip; /* set destination IP number - localhost, 127.0.0.1*/
-				dest.sin_port =  porta ; /* set destination port number */
-				printf("Iniciar conexao. ip: %d  porta: %d\n", ip, porta);
+				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* set destination IP number - localhost, 127.0.0.1*/
+				dest.sin_port = htons(  porta );                /* set destination port number */
+
 				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
-				printf("resultado: %d\n", connectResult);
+
 				if( connectResult == - 1 ){
 
 						printf("CLIENT ERROR: %s\n", strerror(errno));
@@ -290,6 +297,8 @@ int whichFunction(int server_socket)
 				printf("Faz o pedido pra deletar\n");
 				sendInt(CLIENT_DELETE, client_socket);
 				sendString(file_name, client_socket);
+
+				file_name = strtok(NULL, SPACE);
 			}
 			free(file_name);
 
@@ -343,8 +352,6 @@ int main(int argc, char *argv[])
     
 	srand( time( NULL ));
 
-   char buffer[MAXRCVLEN + 1]; /* +1 so we can add null terminator */
-   bzero( buffer, MAXRCVLEN + 1 );
    int comsocket;
    struct sockaddr_in dest;
 
@@ -378,9 +385,10 @@ int main(int argc, char *argv[])
 	pthread_t *clientServer_thread = (pthread_t*)calloc(1, sizeof(pthread_t));
 
 	clientServer_arg *arg = (clientServer_arg*)calloc(1, sizeof(clientServer_arg));
-	arg->port = atoi( argv[ 1 ] );
+	arg->port = port;
 	arg->server_socket = comsocket;
 	arg->diretorio = diretorio;
+	arg->client = novo;
 
 	pthread_create(clientServer_thread, NULL, clientServer , arg);
 

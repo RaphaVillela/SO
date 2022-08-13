@@ -105,19 +105,19 @@ void* functionList(void* arg)
 
             case COMMAND_GET: //get
 
-                    char *file_name = recvString(p->socket);
-                    Client *client = searchClientByFile(p->list, file_name);
+                    char *gfile_name = recvString(p->socket);
+                    Client *gclient = searchClientByFile(p->list, gfile_name);
 					
 					 //Verifica se existe o cliente
-					if(client == NULL)
+					if(gclient == NULL)
 					{
 						printf("Cliente não encontrado\n");
 						sendInt(-1, p->socket);
 						break;
 					}
 					sendInt(0, p->socket); //Caso envie 0, existe o cliente
-                    sendInt(client->ip); //Envia o ip do cliente
-                    sendInt(client->porta); //Envia a porta do cliente
+                    sendInt(gclient->ip, p->socket); //Envia o ip do cliente
+                    sendInt(gclient->porta, p->socket); //Envia a porta do cliente
                 
                 break;
 
@@ -129,7 +129,7 @@ void* functionList(void* arg)
 
                 char* file_name = recvString(p->socket);
 
-                Client *client = searchClientById(p->list, p->id);
+                Client *client = searchClientByFile(p->list, file_name);
 
                 printf("Variaveis criadas\n");
 
@@ -160,9 +160,10 @@ void* functionList(void* arg)
             case DELETE_LIST:
 
             char *nameOfFile = recvString(p->socket);
-            Client *dclient = recvClient(p->socket);
 
-            removeFileFromList(nameOfFile, dclient, p->list);
+            printf("nome : %s  \n", nameOfFile);
+
+            removeFileFromList(nameOfFile, p->list);
 
             default: //invalido
                 

@@ -75,10 +75,10 @@ ClientFile* recvClientFiles(int socket);
 int countFiles(char* diretorio, Client *novo);
 
 //Deleta o arquivo
-void deleteFile(char *file_name, char * dir, ClientFile * file);
+void deleteFile(char *file_name, char * dir);
 
 //Remove o arquivo do ponteiro
-void removeFileFromList(char *file_name, Client *client, List *list);
+int removeFileFromList(char *file_name, List *list);
 
 //Pega a linha do terminal
 char *getTerminalCommand();
