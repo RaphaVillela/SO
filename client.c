@@ -269,8 +269,12 @@ int whichFunction(int server_socket)
 				printf("Enviou nome do arquivo\n");
 
 				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
-					break;
-
+				{
+					printf("Arquivo %s não existe\n", file_name);
+					file_name = strtok(NULL, SPACE);
+					continue;
+				}
+				
 				printf("Vai se conectar ao cliente\n");
 				int ip = recvInt(server_socket);
 				int porta = recvInt(server_socket);
