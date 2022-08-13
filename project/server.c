@@ -105,10 +105,19 @@ void* functionList(void* arg)
 
             case COMMAND_GET: //get
 
-                    //char *file_name = recvString(socket);
-                    //Client *client = searchClientByFile(p->list, file_name);
-                    //sendInt(client->porta);
-                    //sendInt(client->ip);
+                    char *file_name = recvString(p->socket);
+                    Client *client = searchClientByFile(p->list, file_name);
+					
+					 //Verifica se existe o cliente
+					if(client == NULL)
+					{
+						printf("Cliente não encontrado\n");
+						sendInt(-1, p->socket);
+						break;
+					}
+					sendInt(0, p->socket); //Caso envie 0, existe o cliente
+                    sendInt(client->ip); //Envia o ip do cliente
+                    sendInt(client->porta); //Envia a porta do cliente
                 
                 break;
 

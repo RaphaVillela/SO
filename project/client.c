@@ -66,8 +66,46 @@ void *whatClientDo(void* ptr) //socket
 			
 			case CLIENT_GET:
 
-				//char* file_name = recvString(arg->socket); Receber o nome do arquivo a ser enviado
-				//Enviar o arquivo
+				char* file_name = recvString(arg->socket); //Receber o nome do arquivo a ser enviado
+				
+				//Abrir arquivo para leitura
+				FILE *fptr;
+				
+				char* path = (char *)calloc( 1, (strlen(file_name) + strlen(arg->diretorio) + 1);
+				strcpy(path, arg->diretorio);
+				strcat(path, file_name);
+				
+				if((fptr = fopen(path, "r")) == NULL)
+				{
+					printf("Erro ao abrir arquivo %s\n", file_name);
+					break;
+				}
+				
+				char* block = (char*)calloc(1, sizeof(BLOCK_SIZE)); //Um bloco
+				int counter = 0;
+				//Em um loop vai pegar as informações do arquivo e enviar para o outro cliente
+				do
+				{
+					char *c = fgetc(fptr);
+					
+					counter++;
+					strcat(block, c);
+					
+					if(counter == BLOCK_SIZE)
+					{
+						sendString(block, arg->client_socket);
+						counter = 0;
+						block = NULL;
+					}
+					
+				}while(c != EOF);
+				
+				//Caso tenha sobrado algo com tamanho menor que BLOCK_SIZE envia aqui
+				if(counter != 0)
+					sendString(block, arg->client_socket);
+				
+				//Fechar o arquivo
+				fclose(fptr);
 
 				break;
 
@@ -142,15 +180,58 @@ int whichFunction(int server_socket)
 		{
 			sendInt(COMMAND_GET, server_socket); //Entrar no comando get do servidor
 
-			//Ler entrada
-			//sendString(file_name, socket); // Envia nome do arquivo pra saber qual é o client que tem
-			//int porta = recvInt(socket);
-			//int ip = recvInt(socket);
+			char *buffer = getTerminalCommand(); //Ler entrada do terminal
+			char *copy = strdup(buffer); //Copiar o buffer
 
-			//Conectar ao client que possui o arquivo
-			//Envia comando ao cliente sendInt(CLIENT_GET, socket);
-			//sendString(file_name, socket); //Envia nome do arquivo a ser pego
-			//Client recebe o arquivo
+			if(copy == NULL) //Verifica se tem espaço
+			{
+				printf("Não há espaço suficiente");
+				break;
+			}
+
+			char *file_name = calloc(1, sizeof(copy));
+			
+			while((file_name = strtok(copy, SPACE)) != NULL) //Continua enquanto houver argumento
+			{
+				sendInt(COMMAND_GET, server_socket); //Entra no comando get do servidor
+				sendString(file_name, server_socket); //Manda o nome do arquivo
+
+				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
+					break;
+
+				printf("Vai se conectar ao cliente\n");
+				int ip = recvInt(server_socket);
+				int porta = recvInt(server_socket);
+				printf("Pegou ip e porta\n");
+				//Se conectar ao cliente
+				char buffer[MAXRCVLEN + 1]; /* +1 so we can add null terminator */
+				bzero( buffer, MAXRCVLEN + 1 );
+				int client_socket;
+				struct sockaddr_in dest;
+
+				client_socket = socket(AF_INET, SOCK_STREAM, 0);
+				printf("Socket criado\n");
+				memset(&dest, 0, sizeof(dest));                /* zero the struct */
+				dest.sin_family = AF_INET;
+				dest.sin_addr.s_addr = ip; /* set destination IP number - localhost, 127.0.0.1*/
+				dest.sin_port =  porta ; /* set destination port number */
+				printf("Iniciar conexao. ip: %d  porta: %d\n", ip, porta);
+				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
+				printf("resultado: %d\n", connectResult);
+				if( connectResult == - 1 ){
+
+						printf("CLIENT ERROR: %s\n", strerror(errno));
+
+						return EXIT_FAILURE;
+				}
+				printf("Faz o pedido de get\n");
+				sendInt(CLIENT_GET, client_socket);
+				sendString(file_name, client_socket);
+			}
+			free(file_name);
+
+			//Client recebe o os dados do arquivo e cria um novo arquivo com nome+hora com os dados
+			
 			//Cliente adiciona arquivo em list
 
 		}
@@ -180,7 +261,7 @@ int whichFunction(int server_socket)
 				sendString(file_name, server_socket);
 				printf("Enviou nome do arquivo\n");
 
-				if(recvInt(server_socket) != 0) //Sai caso não exista o cliente
+				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
 					break;
 
 				printf("Vai se conectar ao cliente\n");
@@ -188,8 +269,6 @@ int whichFunction(int server_socket)
 				int porta = recvInt(server_socket);
 				printf("Pegou ip e porta\n");
 				//Se conectar ao cliente
-				char buffer[MAXRCVLEN + 1]; /* +1 so we can add null terminator */
-				bzero( buffer, MAXRCVLEN + 1 );
 				int client_socket;
 				struct sockaddr_in dest;
 
@@ -262,7 +341,7 @@ int main(int argc, char *argv[])
 
 	printf("%s \n", diretorio);
     
-	//srand( time( NULL ));
+	srand( time( NULL ));
 
    char buffer[MAXRCVLEN + 1]; /* +1 so we can add null terminator */
    bzero( buffer, MAXRCVLEN + 1 );

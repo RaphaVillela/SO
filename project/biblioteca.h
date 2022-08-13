@@ -7,6 +7,7 @@
 #define COMMAND_CLIENT 6
 #define DELETE_LIST 7
 #define MAX_LENGTH 6
+#define BLOCK_SIZE 512 
 
 //Enviar e receber mensagem de inteiros
 void sendInt( int number, int socket );
