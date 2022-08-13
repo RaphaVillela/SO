@@ -5,7 +5,9 @@
 #define COMMAND_LIST 4
 #define COMMAND_STATS 5
 #define COMMAND_CLIENT 6
+#define DELETE_LIST 7
 #define MAX_LENGTH 6
+#define BLOCK_SIZE 512 
 
 //Enviar e receber mensagem de inteiros
 void sendInt( int number, int socket );
@@ -63,6 +65,7 @@ Client* selectClient(int id, List *list); //Procura um cliente pelo id
 int deleteClient(int id, List *list); //Deleta um cliente da lista
 
 Client* searchClientByFile(List* list, char* fileName); //Procura um cliente pelo nome do arquivo
+Client* searchClientById(List* list, int id); //Procura um cliente pelo seu id
 
 //Enviar e receber os arquivos do cliente
 void sendClientFiles(ClientFile* cf, int socket);
@@ -71,10 +74,11 @@ ClientFile* recvClientFiles(int socket);
 //Conta quantos arquivos tem no diretorio e adiciona os arquivos no cliente
 int countFiles(char* diretorio, Client *novo);
 
-//Enviar e receber a porta do cliente
-void sendClientPort(unsigned int port, int socket);
-unsigned int recvClientPort(int socket);
+//Deleta o arquivo
+void deleteFile(char *file_name, char * dir, ClientFile * file);
 
-//Enviar e receber o ip do cliente
-void sendClientIP(unsigned int ip, int socket);
-unsigned int recvClientIP(int socket);
+//Remove o arquivo do ponteiro
+void removeFileFromList(char *file_name, Client *client, List *list);
+
+//Pega a linha do terminal
+char *getTerminalCommand();

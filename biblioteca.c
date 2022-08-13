@@ -249,6 +249,8 @@ int deleteClient(int id, List *list)
 	Client *before = NULL;
 	printf("valor de temp: %d\n", temp->id);
 
+	printf("Inicio: temp: %p  ... temp->next: %p\n", temp, temp->next);
+
 	//Procura o cliente
 	while(temp != NULL)
 	{
@@ -257,6 +259,8 @@ int deleteClient(int id, List *list)
 
 		before = temp;
 		temp = temp->next;
+		printf("before: %p  ... before->next: %p\n", before, before->next);
+		printf("temp: %p  ... temp->next: %p\n", temp, temp->next);
 	}
 
 	//Verifica se foi era o primeiro da lista
@@ -280,7 +284,7 @@ int deleteClient(int id, List *list)
 			return 1;
 		}
 
-	}else if(temp->next == list->last) //Se for o ultimo da lista
+	}else if(temp->next == NULL) //Se for o ultimo da lista
 	{
 		printf("ultimo\n");
 		list->last = before;
@@ -328,6 +332,24 @@ Client* searchClientByFile(List* list, char* fileName)
 
 	return client;
 }
+
+//Procura o client pela id dele
+Client* searchClientById(List* list, int id)
+{
+	Client* client = list->first;
+
+	//Percorrer os clientes
+	while(client != NULL)
+	{
+		if(client->id == id)
+			break;
+
+		client = client->next;
+	}
+
+	return client;
+}
+
 
 //Envia os arquivos do cliente pelo socket
 void sendClientFiles(ClientFile* cf, int socket)
@@ -419,26 +441,97 @@ int countFiles(char* diretorio, Client *novo)
 	return count;
 }
 
-//Envia a porta do cliente pelo socket
-void sendClientPort(unsigned int port, int socket)
+//Recebe o nome de arquivo, id do client que vai ter o arquivo apagado e a lista para procurar o cliente e apagar
+void deleteFile(char *file_name, char * dir, ClientFile * file)
 {
-	sendInt(port, socket);
+	//Procura o arquivo no cliente
+	while(file != NULL)
+	{
+		if(strcmp(file->name, file_name))
+			break;
+
+		file = file->next;
+	}
+	//Se não encontrar o arquivo
+	if(file == NULL)
+	{
+		printf("Arquivo não encontrado\n");
+		return;
+	}
+	char *path = calloc(1, (strlen(file_name)+ strlen(dir) + 2));
+
+	char * barra = calloc(1, sizeof(char));
+
+	//Pegar o caminho do arquivo
+	strcat(path, dir);
+	strcat(path, file_name);
+
+	if(remove(path) == 0)
+		printf("Arquivo deletado com sucesso!\n");
+	else
+		printf("Erro ao deletar arquivo!\n");
+
 }
 
-//Recebe a porta do cliente pelo socket
-unsigned int recvClientPort(int socket)
+//Remove o arquivo da lista do servidor
+void removeFileFromList(char *file_name, Client *client, List *list)
 {
-	return recvInt(socket);
+	Client *tempclient = list->first;
+
+	while(tempclient != NULL)
+	{
+		if(tempclient == client)
+			break;
+	}
+
+	ClientFile *file = tempclient->data;
+	ClientFile *before = NULL;
+
+	while(file != NULL)
+	{
+		if(strcmp(file_name, file->name) == 0)
+			break;
+
+		before = file;
+		file = file->next;
+	}
+
+	//Se não encontrar o arquivo
+	if(file == NULL)
+	{
+		printf("Arquivo não encontrado\n");
+		return;
+	}
+
+	//Verifica se é o primeiro da lista
+	if(before == NULL)
+		client->data = file->next;
+	else if (file->next == NULL) //Verifica se é o ultimo
+		before->next = NULL;
+	else
+		before->next = file->next;
+
+	free(file);
+
+	printf("Arquivo %s retirado do cliente %d\n", file_name, tempclient->id);
+
+	free(tempclient);
 }
 
-//Envia o IP do cliente pelo socket
-void sendClientIP(unsigned int ip, int socket)
+//Le e escreve no buffer o conteudo da linha do terminal
+char *getTerminalCommand()
 {
-	sendInt(ip, socket);
-}
+	size_t buffer_size = 512;
 
-//Recebe o IP do cliente pelo socket
-unsigned int recvClientIP(int socket)
-{
-	return recvInt(socket);
+	char *buffer = (char*)calloc(buffer_size, sizeof(char));
+
+	int bytes_read = getline(&buffer, &buffer_size, stdin);
+
+	if(bytes_read == -1)
+	{
+		printf("Erro ao ler o comando do terminal\n");
+		return NULL;
+	}
+
+	return buffer;
 }

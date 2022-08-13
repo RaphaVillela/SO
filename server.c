@@ -60,11 +60,16 @@ void printList(List *list)
     }
 }
 
+//Adiciona o id ao client que vai ser reecbido e adiciona ele na lista
 void commandClient(int socket, List *list, int id)
 {
     Client* client = recvClient(socket);
     client->id = id;
     addClient(list, client);
+
+    printf("nFiles: %d\n", client->nFiles);
+    printf("Porta: %d\n", client->porta);
+    printf("Ip: %d\n", client->ip);
 
     printList(list);
 }
@@ -77,6 +82,7 @@ void* functionList(void* arg)
     while(1)
     {
         int command = recvInt(p->socket);
+        //printf("Funções servidor: %d\n", command);
 
         switch(command)
         {
@@ -98,6 +104,20 @@ void* functionList(void* arg)
                 break;
 
             case COMMAND_GET: //get
+
+                    char *file_name = recvString(p->socket);
+                    Client *client = searchClientByFile(p->list, file_name);
+					
+					 //Verifica se existe o cliente
+					if(client == NULL)
+					{
+						printf("Cliente não encontrado\n");
+						sendInt(-1, p->socket);
+						break;
+					}
+					sendInt(0, p->socket); //Caso envie 0, existe o cliente
+                    sendInt(client->ip); //Envia o ip do cliente
+                    sendInt(client->porta); //Envia a porta do cliente
                 
                 break;
 
@@ -106,7 +126,27 @@ void* functionList(void* arg)
                 break;
 
             case COMMAND_DELETE: //del
-                //Usar delete(pathOfFile)
+
+                char* file_name = recvString(p->socket);
+
+                Client *client = searchClientById(p->list, p->id);
+
+                printf("Variaveis criadas\n");
+
+                //Verificar se existe o cliente
+                if(client == NULL)
+                {
+                    printf("Cliente não encontrado\n");
+                    sendInt(-1, p->socket);
+                    break;
+                }
+                sendInt(0, p->socket); //Caso envie 0, existe o cliente
+                printf("Send de verificação\n");
+                sendInt(client->ip, p->socket);
+                printf("Send ip\n");
+                sendInt(client->porta, p->socket);
+                printf("Send porta\n");
+                
                 break;
 
             case COMMAND_LIST: //list
@@ -116,6 +156,13 @@ void* functionList(void* arg)
             case COMMAND_STATS: //stats
                 
                 break;
+
+            case DELETE_LIST:
+
+            char *nameOfFile = recvString(p->socket);
+            Client *dclient = recvClient(p->socket);
+
+            removeFileFromList(nameOfFile, dclient, p->list);
 
             default: //invalido
                 
@@ -169,14 +216,14 @@ int main(int argc, char *argv[])
     { 
         int comsocket = accept(mysocket, (struct sockaddr *)&dest, &socksize);
 
-        pthread_t thread;
+        pthread_t *thread = calloc(1, sizeof(pthread_t));
 
         Parametro *p = (Parametro*)calloc(1, sizeof(Parametro));
         p->socket = comsocket;
         p->list = list;
         p->id = id;
 
-        pthread_create( &thread, NULL, functionList, p);
+        pthread_create( thread, NULL, functionList, p);
 
         printf("Incoming connection from %s - sending welcome\n", inet_ntoa(dest.sin_addr));
 
