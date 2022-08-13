@@ -260,7 +260,8 @@ int whichFunction(int server_socket)
 			printf("Vai entrar no while\n");
 			while(file_name != NULL)
 			{
-				file_name[strlen(file_name)-1] = '\0';
+				if(file_name[strlen(file_name)-1] == '\n')
+					file_name[strlen(file_name)-1] = '\0';
 
 				printf("Dentro do while, fileName: %s\n", file_name);
 				sendInt(COMMAND_DELETE, server_socket); //Entra no comando delete do servidor
