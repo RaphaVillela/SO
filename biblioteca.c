@@ -172,6 +172,62 @@ Client* recvClient(int socket)
 	return client;
 }
 
+//Vai ler um arquivo e enviar os dados dele como string
+void sendFile(char* path, int socket)
+{
+	//Abrir arquivo para leitura
+	FILE *fptr;
+
+	if((fptr = fopen(path, "r")) == NULL)
+	{
+		printf("Erro ao abrir arquivo\n");
+		return;
+	}
+
+	fseek(fptr, 0, SEEK_END);
+	int size = ftell(fptr); //Tamanho do arquivo
+	fseek(fptr, 0, SEEK_SET); //Colocar no inicio do arquivo para leitura
+
+	char *block = (char*)calloc(1, BLOCK_SIZE);
+
+	int total_size = 0;
+
+	while(total_size < size)
+	{
+		fgets(block, sizeof(block), fptr);
+		sendString(block, socket);
+
+		total_size += sizeof(block);
+	}
+	sendString(NULL, socket); //Indica que acabou a leitura
+
+	//Fechar o arquivo
+	fclose(fptr);
+}
+
+//Recebe o caminho para poder criar o arquivo aqui mesmo
+void recvFile(char* path, int socket)
+{
+	FILE *fptr;
+
+	if((fptr = fopen(path, "w")) == NULL)
+	{
+		printf("Erro ao abrir arquivo\n");
+		return;
+	}
+	
+	char *string = recvString(socket);
+
+	while(string != NULL)
+	{
+		fprintf(fptr, "%s", string);
+
+		string = recvString(socket);
+	}
+
+	fclose(fptr);
+}
+
 //Doubles aleatórios
 double randomDouble(double min, double max)
 {
@@ -435,6 +491,19 @@ int countFiles(char* diretorio, Client *novo)
 	novo->data = first;
 
 	return count;
+}
+
+//Adicionar o nome do arquivo, na lista do servidor
+void addFile(List *list, char* file_name, int id)
+{
+	Client *client = searchClientById(list, id);
+
+	ClientFile *new = (ClientFile*)calloc(1, sizeof(ClientFile));
+	new->name = file_name;
+	new->next = client->data;
+
+	client->data = new; //Adiciona na primeira posição da lista
+	
 }
 
 //Recebe o nome de arquivo, id do client que vai ter o arquivo apagado e a lista para procurar o cliente e apagar

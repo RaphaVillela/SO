@@ -89,6 +89,7 @@ void* functionList(void* arg)
             case COMMAND_CLIENT:
 
                 commandClient(p->socket, p->list, p->id);
+                sendInt(p->id, p->socket); //Envia o id pro cliente
                 break;
 
             case COMMAND_EXIT: ;//exit
@@ -131,8 +132,6 @@ void* functionList(void* arg)
 
                 Client *client = searchClientByFile(p->list, file_name);
 
-                printf("Variaveis criadas\n");
-
                 //Verificar se existe o cliente
                 if(client == NULL)
                 {
@@ -141,11 +140,8 @@ void* functionList(void* arg)
                     break;
                 }
                 sendInt(0, p->socket); //Caso envie 0, existe o cliente
-                printf("Send de verificação\n");
                 sendInt(client->ip, p->socket);
-                printf("Send ip\n");
                 sendInt(client->porta, p->socket);
-                printf("Send porta\n");
                 
                 break;
 
@@ -159,11 +155,22 @@ void* functionList(void* arg)
 
             case DELETE_LIST:
 
-            char *nameOfFile = recvString(p->socket);
+                char *nameOfFile = recvString(p->socket);
 
-            printf("nome : %s  \n", nameOfFile);
+                printf("nome : %s  \n", nameOfFile);
 
-            removeFileFromList(nameOfFile, p->list);
+                removeFileFromList(nameOfFile, p->list);
+
+                break;
+
+            case ADD_LIST:
+
+                char* afile_name = recvString(p->socket);
+                int id = recvInt(p->socket);
+
+                addFile(p->list, afile_name, id);
+
+                break;
 
             default: //invalido
                 

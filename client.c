@@ -70,46 +70,12 @@ void *whatClientDo(void* ptr) //socket
 
 				char* gfile_name = recvString(arg->client_socket); //Receber o nome do arquivo a ser enviado
 				
-				//Abrir arquivo para leitura
-				FILE *fptr;
-				
 				char* path = (char *)calloc( 1, (strlen(gfile_name) + strlen(arg->diretorio) + 1));
 				strcpy(path, arg->diretorio);
 				strcat(path, gfile_name);
-				
-				if((fptr = fopen(path, "r")) == NULL)
-				{
-					printf("Erro ao abrir arquivo %s\n", gfile_name);
-					break;
-				}
-				
-				char* block = (char*)calloc(1, sizeof(BLOCK_SIZE)); //Um bloco
-				int counter = 0;
-				char c;
-				//Em um loop vai pegar as informações do arquivo e enviar para o outro cliente
-				/*
-				{
-					c = fgetc(fptr);
-					
-					counter++;
-					strcat(block, c);
-					
-					if(counter == BLOCK_SIZE)
-					{
-						sendString(block, arg->client_socket);
-						counter = 0;
-						block = NULL;
-					}
-					
-				}while(c != EOF);*/
-				
-				//Caso tenha sobrado algo com tamanho menor que BLOCK_SIZE envia aqui
-				if(counter != 0)
-					sendString(block, arg->client_socket);
-				
-				//Fechar o arquivo
-				fclose(fptr);
 
+				sendFile(path, arg->client_socket);
+								
 				break;
 
 			case CLIENT_SEND:
@@ -164,7 +130,7 @@ void *clientServer(void* ptr)
 }
 
 //Fica no cliente para o usuario digitar o comando desejado
-int whichFunction(int server_socket)
+int whichFunction(int server_socket, char* diretorio, int id)
 {
 	char *command = (char*)calloc(MAX_LENGTH, sizeof(char));
 
@@ -182,8 +148,6 @@ int whichFunction(int server_socket)
 		}
 		else if(strcmp(command, "get") == 0)
 		{
-			sendInt(COMMAND_GET, server_socket); //Entrar no comando get do servidor
-
 			char *buffer = getTerminalCommand(); //Ler entrada do terminal
 			char *copy = strdup(buffer); //Copiar o buffer
 
@@ -193,80 +157,15 @@ int whichFunction(int server_socket)
 				break;
 			}
 
-			char *file_name = calloc(1, sizeof(copy));
-			
-			while((file_name = strtok(copy, SPACE)) != NULL) //Continua enquanto houver argumento
-			{
-				sendInt(COMMAND_GET, server_socket); //Entra no comando get do servidor
-				sendString(file_name, server_socket); //Manda o nome do arquivo
-
-				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
-					break;
-
-				printf("Vai se conectar ao cliente\n");
-				int ip = recvInt(server_socket);
-				int porta = recvInt(server_socket);
-				printf("Pegou ip e porta\n");
-				//Se conectar ao cliente
-				char buffer[MAXRCVLEN + 1]; /* +1 so we can add null terminator */
-				bzero( buffer, MAXRCVLEN + 1 );
-				int client_socket;
-				struct sockaddr_in dest;
-
-				client_socket = socket(AF_INET, SOCK_STREAM, 0);
-				printf("Socket criado\n");
-				memset(&dest, 0, sizeof(dest));                /* zero the struct */
-				dest.sin_family = AF_INET;
-				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* set destination IP number - localhost, 127.0.0.1*/
-				dest.sin_port =  porta ; /* set destination port number */
-				printf("Iniciar conexao. ip: %d  porta: %d\n", ip, porta);
-				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
-				printf("resultado: %d\n", connectResult);
-				if( connectResult == - 1 ){
-
-						printf("CLIENT ERROR: %s\n", strerror(errno));
-
-						return EXIT_FAILURE;
-				}
-				printf("Faz o pedido de get\n");
-				sendInt(CLIENT_GET, client_socket);
-				sendString(file_name, client_socket);
-			}
-			free(file_name);
-
-			//Client recebe o os dados do arquivo e cria um novo arquivo com nome+hora com os dados
-			
-			//Cliente adiciona arquivo em list
-
-		}
-		else if(strcmp(command, "send") == 0)
-		{
-			sendInt(COMMAND_SEND, server_socket);
-		}
-		else if((strcmp(command, "del") == 0) || (strcmp(command, "delete") == 0) || (strcmp(command, "rmv") == 0))
-		{
-			printf("Entrou no delete\n");
-			char *buffer = getTerminalCommand();
-			printf("buffer criado\n");
-			char *copy = strdup(buffer);
-			printf("file_name criado\n");
-			if(copy == NULL)
-			{
-				printf("Não há espaço suficiente");
-				break;
-			}
-
 			char *file_name = strtok(copy, SPACE);
-			printf("Vai entrar no while\n");
+
 			while(file_name != NULL)
 			{
 				if(file_name[strlen(file_name)-1] == '\n')
 					file_name[strlen(file_name)-1] = '\0';
 
-				printf("Dentro do while, fileName: %s\n", file_name);
-				sendInt(COMMAND_DELETE, server_socket); //Entra no comando delete do servidor
+				sendInt(COMMAND_GET, server_socket); //Entra no comando get do servidor
 				sendString(file_name, server_socket);
-				printf("Enviou nome do arquivo\n");
 
 				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
 				{
@@ -275,11 +174,8 @@ int whichFunction(int server_socket)
 					continue;
 				}
 				
-				printf("Vai se conectar ao cliente\n");
 				int ip = recvInt(server_socket);
-				int porta = recvInt(server_socket);
-				printf("Pegou ip e porta\n");
-				 
+				int porta = recvInt(server_socket);				 
 
 				int client_socket;
 				struct sockaddr_in dest;
@@ -299,7 +195,85 @@ int whichFunction(int server_socket)
 
 						return EXIT_FAILURE;
 				}
-				printf("Faz o pedido pra deletar\n");
+				
+				sendInt(CLIENT_GET, client_socket);
+				sendString(file_name, client_socket);
+
+				//char *new_name = ;
+
+				char* path = (char *)calloc( 1, (strlen(file_name) + strlen(diretorio) + 1));
+				strcpy(path, diretorio);
+				strcat(path, file_name);
+
+				recvFile(path, client_socket); //Cria o arquivo no diretorio
+
+				sendInt(ADD_LIST, server_socket); //Pedir pra adicionar o novo arquivo na lista
+				sendString(file_name, server_socket);
+				sendInt(id, server_socket);
+
+				file_name = strtok(NULL, SPACE);
+			}
+			free(file_name);
+
+			//Client recebe o os dados do arquivo e cria um novo arquivo com nome+hora com os dados
+			
+			//Cliente adiciona arquivo em list
+
+		}
+		else if(strcmp(command, "send") == 0)
+		{
+			sendInt(COMMAND_SEND, server_socket);
+		}
+		else if((strcmp(command, "del") == 0) || (strcmp(command, "delete") == 0) || (strcmp(command, "rmv") == 0))
+		{
+			char *buffer = getTerminalCommand();
+			char *copy = strdup(buffer);
+
+			if(copy == NULL)
+			{
+				printf("Não há espaço suficiente");
+				break;
+			}
+
+			char *file_name = strtok(copy, SPACE);
+
+			while(file_name != NULL)
+			{
+				if(file_name[strlen(file_name)-1] == '\n')
+					file_name[strlen(file_name)-1] = '\0';
+
+				sendInt(COMMAND_DELETE, server_socket); //Entra no comando delete do servidor
+				sendString(file_name, server_socket);
+
+				if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
+				{
+					printf("Arquivo %s não existe\n", file_name);
+					file_name = strtok(NULL, SPACE);
+					continue;
+				}
+				
+				int ip = recvInt(server_socket);
+				int porta = recvInt(server_socket);				 
+
+				int client_socket;
+				struct sockaddr_in dest;
+
+				client_socket = socket(AF_INET, SOCK_STREAM, 0);
+
+				memset(&dest, 0, sizeof(dest));                /* zero the struct */
+				dest.sin_family = AF_INET;
+				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* set destination IP number - localhost, 127.0.0.1*/
+				dest.sin_port = htons(  porta );                /* set destination port number */
+
+				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
+
+				if( connectResult == - 1 ){
+
+						printf("CLIENT ERROR: %s\n", strerror(errno));
+
+						return EXIT_FAILURE;
+				}
+
 				sendInt(CLIENT_DELETE, client_socket);
 				sendString(file_name, client_socket);
 
@@ -386,6 +360,7 @@ int main(int argc, char *argv[])
 
 	sendInt(COMMAND_CLIENT, comsocket);
 	sendClient(novo, comsocket);
+	novo->id = recvInt(comsocket); //Receber o id pelo servidor
 	
 	pthread_t *clientServer_thread = (pthread_t*)calloc(1, sizeof(pthread_t));
 
@@ -397,7 +372,7 @@ int main(int argc, char *argv[])
 
 	pthread_create(clientServer_thread, NULL, clientServer , arg);
 
-  	whichFunction(comsocket);
+  	whichFunction(comsocket, diretorio, novo->id);
 
 	//sendClientFiles("./client1/",comsocket);
    

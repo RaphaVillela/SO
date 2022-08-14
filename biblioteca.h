@@ -6,8 +6,9 @@
 #define COMMAND_STATS 5
 #define COMMAND_CLIENT 6
 #define DELETE_LIST 7
+#define ADD_LIST 8
 #define MAX_LENGTH 6
-#define BLOCK_SIZE 512 
+#define BLOCK_SIZE 16 
 
 //Enviar e receber mensagem de inteiros
 void sendInt( int number, int socket );
@@ -56,6 +57,10 @@ typedef struct
 void sendClient(Client *client, int socket);
 Client* recvClient(int socket);
 
+//Enviar e receber arquivos
+void sendFile(char* path, int socket);
+void recvFile(char *path, int socket);
+
 //Libera o cliente da memoria
 void freeClient(Client* client); //Deleta o cliente da memoria
 
@@ -73,6 +78,9 @@ ClientFile* recvClientFiles(int socket);
 
 //Conta quantos arquivos tem no diretorio e adiciona os arquivos no cliente
 int countFiles(char* diretorio, Client *novo);
+
+//Adiciona o nome do arquivo na lista do servidor
+void addFile(List *list, char* file_name, int id);
 
 //Deleta o arquivo
 void deleteFile(char *file_name, char * dir);
