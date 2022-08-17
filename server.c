@@ -33,9 +33,11 @@ void commandList(int socket, List*list)
 
     sendInt(count, socket);
     client = list->first;
+    printf("count = %d\n", count);
 
     while(client != NULL)
     {
+        printf("Id client = %d\n", client->id);
         sendClient(client, socket);
         client = client->next;
     }
@@ -104,7 +106,7 @@ void* functionList(void* arg)
                     printf("Erro desconhecido!\n");
                 break;
 
-            case COMMAND_GET: //get
+            case COMMAND_GET:; //get
 
                     char *gfile_name = recvString(p->socket);
                     Client *gclient = searchClientByFile(p->list, gfile_name);
@@ -122,11 +124,7 @@ void* functionList(void* arg)
                 
                 break;
 
-            case COMMAND_SEND: //send
-                
-                break;
-
-            case COMMAND_DELETE: //del
+            case COMMAND_DELETE:; //del
 
                 char* file_name = recvString(p->socket);
 
@@ -150,10 +148,10 @@ void* functionList(void* arg)
                 break;
 
             case COMMAND_STATS: //stats
-                
+                commandList(p->socket, p->list);            
                 break;
 
-            case DELETE_LIST:
+            case DELETE_LIST:;
 
                 char *nameOfFile = recvString(p->socket);
 
@@ -163,12 +161,31 @@ void* functionList(void* arg)
 
                 break;
 
-            case ADD_LIST:
+            case ADD_LIST:;
 
                 char* afile_name = recvString(p->socket);
                 int id = recvInt(p->socket);
 
                 addFile(p->list, afile_name, id);
+
+                break;
+
+            case WHO_IS_CLIENT:;
+
+                int cid = recvInt(p->socket);
+
+                Client *wclient = searchClientById(p->list, cid);
+
+                if(wclient == NULL)
+                {
+                    sendInt(-1, p->socket);
+                    continue;
+                }
+                else
+                {
+                    sendInt(0, p->socket);
+                    sendClient(wclient, p->socket);
+                }
 
                 break;
 

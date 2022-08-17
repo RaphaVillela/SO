@@ -7,36 +7,36 @@
 #include <stdio.h>
 
 //Enviar inteiro (Funciona)
-void sendInt(int number, int socket)
+/*void sendInt(int number, int socket)
 {
 	send(socket, &number, sizeof(number), 0);
-}
+}*/
 //Enviar inteiro, garantindo que todos o bytes sejam enviados(Parece que funciona)
-/*void sendInt(int number, int socket)
+void sendInt(int number, int socket)
 {
 	int numberbytesend = send(socket, &number, sizeof(int), 0);
 
 	//Transforma o endereco do inteiro em char, para poder percorre-lo
-	char* numberPointer = (char*) &number;
+	//char* numberPointer = (char*) &number;
 	
 	while(numberbytesend < sizeof(int))
 	{
-		numberbytesend += send(socket, (numberPointer + numberbytesend), (sizeof(int)- numberbytesend), 0);
+		numberbytesend += send(socket, (&number + numberbytesend), (sizeof(int)- numberbytesend), 0);
 	}
 	
-}*/
+}
 
 //Receber inteiro (Funciona)
-int recvInt(int socket)
+/*int recvInt(int socket)
 {
 	int number;
 	
 	recv(socket, &number, sizeof(number), 0);
 	
 	return number;
-}
+}*/
 //Receber inteiro, garantindo que todos os bytes sejam recebidos(Parece que funciona)
-/*int recvInt(int socket)
+int recvInt(int socket)
 {
 	int number;
 	int numberbyterecv = recv(socket, &number, sizeof(int), 0);
@@ -47,13 +47,13 @@ int recvInt(int socket)
 	}
 	
 	return number;
-}*/
+}
 
 //Enviar double (Funciona)
-/*void sendDouble(double number, int socket)
+void sendDouble(double number, int socket)
 {
 	send(socket, &number, sizeof(double), 0);
-}*/
+}
 
 //Enviar double, garantindo que cada byte seja enviado(Não funciona)
 /*void sendDouble(double number, int socket)
@@ -67,14 +67,14 @@ int recvInt(int socket)
 }*/
 
 //Receber double (Funciona)
-/*double recvDouble(int socket)
+double recvDouble(int socket)
 {
 	double number;
 
 	recv(socket, &number, sizeof(double), 0);
 	
 	return number;
-}*/
+}
 
 //Receber double, garantindo que cada byte seja recebido(Não funciona)
 /*double recvDouble(int socket)
@@ -92,16 +92,16 @@ int recvInt(int socket)
 
 
 //Enviar string(Funciona)
-void sendString(char* string, int socket)
+/*void sendString(char* string, int socket)
 {
 	int nBytes = sizeof(char) * strlen(string);
-	
+	//printf("Enviado nBytes : %d\n", nBytes);
 	//Guardar o tamanho pra usar em recv
 	sendInt(nBytes, socket);
-
+	//printf("Enviado string : %s\n", string);
 	send(socket, string, nBytes, 0);
-}
-/*
+}*/
+
 //Enviar string(Não sei se funciona)
 void sendString(char* string, int socket)
 {
@@ -112,24 +112,25 @@ void sendString(char* string, int socket)
 
 	int nBytesSend = send(socket, string, nBytes, 0);
 	
-	while(nBytes - nBytesSend)
+	while(nBytes > nBytesSend)
 	{
 		nBytesSend += send(socket, (string + nBytesSend), (nBytes - nBytesSend), 0);
 	}
 }
-*/
+
 //Receber string(Funciona)
-char* recvString(int socket)
+/*char* recvString(int socket)
 {	
 	int nBytes = recvInt(socket);
+	//printf("Recv nBytes : %d\n", nBytes);
 	
 	char* string = (char*)calloc(nBytes+1, sizeof(char));
-
-	recv(socket, string, nBytes, 0);
 	
+	recv(socket, string, nBytes, 0);
+	//printf("Recv String : %s\n", string);
 	return string;
-}
-/*
+}*/
+
 //Receber string(Não sei se funciona)
 char* recvString(int socket)
 {	
@@ -139,14 +140,14 @@ char* recvString(int socket)
 
 	int nBytesSend = recv(socket, string, nBytes, 0);
 	
-	while(nBytes - nBytesSend)
+	while(nBytes > nBytesSend)
 	{
 		nBytesSend += recv(socket, (string + nBytesSend), (nBytes - nBytesSend), 0);
 	}
 	
 	return string;
 }
-*/
+
 
 //Vai enviar os dados do Cliente
 void sendClient(Client *client, int socket)
@@ -164,10 +165,15 @@ Client* recvClient(int socket)
 	Client * client = calloc(1, sizeof(Client));
 
 	client->id = recvInt (socket); // recebe id
+	//printf("Fooooooor1111\n");
 	client->nFiles = recvInt (socket); //recebe a quantidade de arquivos
+	//printf("Fooooooor2222\n");
 	client->porta = recvInt (socket); //recebe a porta
+	//printf("Fooooooor3333\n");
 	client->ip = recvInt (socket); //recebe o ip
+	//printf("Fooooooor4444\n");
 	client->data = recvClientFiles(socket); //recebe os dados(nome dos arquivos)
+	//printf("Fooooooor5555\n");
 
 	return client;
 }
@@ -183,26 +189,88 @@ void sendFile(char* path, int socket)
 		printf("Erro ao abrir arquivo\n");
 		return;
 	}
+	printf("Arquivo para leitura aberto\n");
 
 	fseek(fptr, 0, SEEK_END);
 	int size = ftell(fptr); //Tamanho do arquivo
 	fseek(fptr, 0, SEEK_SET); //Colocar no inicio do arquivo para leitura
+	printf("Tamanho do arquivo: %d\n", size);
 
-	char *block = (char*)calloc(1, BLOCK_SIZE);
+	char *block = (char*)calloc(BLOCK_SIZE, sizeof(char));
 
-	int total_size = 0;
-
-	while(total_size < size)
+	int nblocks = 0;
+	for(int i = 0; ;i++) //Conta quantos blocos existem
 	{
-		fgets(block, sizeof(block), fptr);
-		sendString(block, socket);
+		if((i*BLOCK_SIZE) >= size)
+			break;
 
-		total_size += sizeof(block);
+		nblocks++;
 	}
-	sendString(NULL, socket); //Indica que acabou a leitura
+	sendInt(nblocks, socket);
+	printf("Blocos: %d\n",nblocks);
+	
+	int total_size = 0;
+	int bread = 0;
 
+	while(bread = fread(block, sizeof(char), BLOCK_SIZE, fptr))
+	{
+			//printf("bread: %d\n", bread);
+
+			//printf("String lida: %s      length: %d\n", block, bread);
+			sendInt(bread, socket);
+			sendString(block, socket);
+	}
 	//Fechar o arquivo
 	fclose(fptr);
+}
+
+//Vai ler um arquivo e enviar os dados dele como string com thread
+void *sendFilet(void *ptr)
+{
+	sendFiles_arg *arg = (sendFiles_arg*)ptr;
+
+	//Abrir arquivo para leitura
+	FILE *fptr;
+
+	if((fptr = fopen(arg->path, "r")) == NULL)
+	{
+		printf("Erro ao abrir arquivo\n");
+		return (void*)0;
+	}
+	printf("Arquivo para leitura aberto\n");
+
+	fseek(fptr, 0, SEEK_END);
+	int size = ftell(fptr); //Tamanho do arquivo
+	fseek(fptr, 0, SEEK_SET); //Colocar no inicio do arquivo para leitura
+	printf("Tamanho do arquivo: %d bytes\n", size);
+
+	char *block = (char*)calloc(BLOCK_SIZE, sizeof(char));
+
+	int nblocks = 0;
+	for(int i = 0; ;i++) //Conta quantos blocos existem
+	{
+		if((i*BLOCK_SIZE) >= size)
+			break;
+
+		nblocks++;
+	}
+	sendInt(nblocks, arg->socket);
+	//printf("Blocos: %d\n",nblocks);
+	
+	int total_size = 0;
+	int bread = 0;
+
+	while(bread = fread(block, sizeof(char), BLOCK_SIZE, fptr))
+	{
+		//printf("bread: %d\n", bread);
+		//printf("String lida: %s   length: %d\n", block, bread);
+		sendInt(bread, arg->socket);
+		sendString(block, arg->socket);
+	}
+	//printf("Saiu do while do SENDFILE\n");
+	fclose(fptr);
+
+	return (void*)0;
 }
 
 //Recebe o caminho para poder criar o arquivo aqui mesmo
@@ -210,19 +278,27 @@ void recvFile(char* path, int socket)
 {
 	FILE *fptr;
 
+	//printf("PAth: %s\n", path);
+
 	if((fptr = fopen(path, "w")) == NULL)
 	{
 		printf("Erro ao abrir arquivo\n");
 		return;
 	}
-	
-	char *string = recvString(socket);
+	int nblocks = recvInt(socket); //Recebe a quantidade de blocos a ser enviada
+	printf("Blocos: %d\n",nblocks);
+	//printf("Arquivo para escrita aberto\n");
+	int length = 0;
+	char *block = calloc(1, sizeof(BLOCK_SIZE));
 
-	while(string != NULL)
+	for(int i = 0; i < nblocks; i++)
 	{
-		fprintf(fptr, "%s", string);
+		length = recvInt(socket);
+		block = recvString(socket);
 
-		string = recvString(socket);
+		fwrite(block, 1, length, fptr);
+
+		//printf("String lida: %s\n", block);		
 	}
 
 	fclose(fptr);
@@ -303,10 +379,7 @@ int deleteClient(int id, List *list)
 {
 	Client *temp = list->first;
 	Client *before = NULL;
-	printf("valor de temp: %d\n", temp->id);
-
-	printf("Inicio: temp: %p  ... temp->next: %p\n", temp, temp->next);
-
+	
 	//Procura o cliente
 	while(temp != NULL)
 	{
@@ -315,8 +388,6 @@ int deleteClient(int id, List *list)
 
 		before = temp;
 		temp = temp->next;
-		printf("before: %p  ... before->next: %p\n", before, before->next);
-		printf("temp: %p  ... temp->next: %p\n", temp, temp->next);
 	}
 
 	//Verifica se foi era o primeiro da lista
@@ -325,24 +396,19 @@ int deleteClient(int id, List *list)
 		//Se so existe 1 na lista
 		if(list->first == list->last)
 		{
-			printf("valor de temp: %p\n", temp);
-			printf("primeiro e unico\n");
 			list->first = NULL;
 			list->last = NULL;
 			freeClient(temp);
 			return 1;
 		}else
 		{
-			printf("primeiro apenas\n");
 			list->first = temp->next;
-			printf("Entrar no free\n");
 			freeClient(temp);
 			return 1;
 		}
 
 	}else if(temp->next == NULL) //Se for o ultimo da lista
 	{
-		printf("ultimo\n");
 		list->last = before;
 		before->next = NULL;
 		freeClient(temp);
@@ -350,7 +416,6 @@ int deleteClient(int id, List *list)
 	}else
 	{
 		//Se nao entrou em nenhum dos anteriores, esta no meio da lista
-		printf("meio\n");
 		before->next = temp->next;
 		freeClient(temp);
 		return 1;
@@ -385,7 +450,7 @@ Client* searchClientByFile(List* list, char* fileName)
 	return NULL;
 }
 
-//Procura o client pela id dele
+//Procura o client pela id dele caso exista retorna ele, se não retorna NULL
 Client* searchClientById(List* list, int id)
 {
 	Client* client = list->first;
@@ -394,12 +459,12 @@ Client* searchClientById(List* list, int id)
 	while(client != NULL)
 	{
 		if(client->id == id)
-			break;
+			return client;
 
 		client = client->next;
 	}
 
-	return client;
+	return NULL;
 }
 
 
@@ -430,7 +495,7 @@ void sendClientFiles(ClientFile* cf, int socket)
 
 //Recebe os arquivos enviados do cliente pelo socket
 ClientFile* recvClientFiles(int socket)
-{
+{	
 	ClientFile *lastFile =  NULL;
 	int total = recvInt(socket);
 
@@ -439,9 +504,7 @@ ClientFile* recvClientFiles(int socket)
 		ClientFile *file = (ClientFile*)calloc(1, sizeof(ClientFile));
 
 		file->name = recvString(socket);
-
 		file->next = lastFile;
-		
 		lastFile = file;
 	}
 	

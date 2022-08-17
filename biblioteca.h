@@ -7,23 +7,10 @@
 #define COMMAND_CLIENT 6
 #define DELETE_LIST 7
 #define ADD_LIST 8
+#define WHO_IS_CLIENT 9
 #define MAX_LENGTH 6
-#define BLOCK_SIZE 16 
-
-//Enviar e receber mensagem de inteiros
-void sendInt( int number, int socket );
-int recvInt( int socket );
-
-//Enviar e receber mensagem de double
-void sendDouble( double number, int socket );
-double recvDouble( int socket );
-
-//Enviar e receber mensagem de string
-void sendString( char* string, int socket );
-char* recvString( int socket );
-
-//Doubles aleatórios
-double randomDouble(double min, double max);
+#define BLOCK_SIZE 4096 
+#define ID_MAX 4
 
 //Arquivos de cada cliente
 typedef struct ClientFile_t
@@ -53,13 +40,37 @@ typedef struct
 
 }List;
 
+//Struct para os argumentos do sendFiles
+typedef struct sendFiles_arg_
+{
+	char *path;
+	int socket;
+
+}sendFiles_arg;
+
+//Enviar e receber mensagem de inteiros
+void sendInt( int number, int socket );
+int recvInt( int socket );
+
+//Enviar e receber mensagem de double
+void sendDouble( double number, int socket );
+double recvDouble( int socket );
+
+//Enviar e receber mensagem de string
+void sendString( char* string, int socket );
+char* recvString( int socket );
+
 //Enviar e receber os clientes
 void sendClient(Client *client, int socket);
 Client* recvClient(int socket);
 
 //Enviar e receber arquivos
 void sendFile(char* path, int socket);
+void *sendFilet(void *ptr);
 void recvFile(char *path, int socket);
+
+//Doubles aleatórios
+double randomDouble(double min, double max);
 
 //Libera o cliente da memoria
 void freeClient(Client* client); //Deleta o cliente da memoria

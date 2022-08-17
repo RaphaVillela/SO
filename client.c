@@ -39,6 +39,26 @@ typedef struct clientCommand_arg_
 
 }clientCommand_arg;
 
+//Struct para iniciar a thread e conexao com outro cliente
+typedef struct connectClient_
+{
+	int id;
+	int server_socket;
+	int ip;
+	int porta;
+	char* file_name;
+	char* diretorio;
+
+}connectClient;
+
+//Struct para o send thread
+typedef struct thread_of_send_
+{
+	int client_socket;
+	char *path;
+
+}thread_of_send;
+
 //Lista de comandos que o cliente faz
 void *whatClientDo(void* ptr) //socket
 {
@@ -51,14 +71,13 @@ void *whatClientDo(void* ptr) //socket
 
 		switch(command)
         {
-            case CLIENT_DELETE:
+            case CLIENT_DELETE:;
 				
 				char *file_name = recvString(arg->client_socket);
 
 				//Deletar chamando deleteFile
 				deleteFile(file_name, arg->diretorio);
 
-				printf("Saiu do delete FIle\n");
 
 				//Deletar da list no servidor
 				sendInt(DELETE_LIST, arg->server_socket);
@@ -66,20 +85,41 @@ void *whatClientDo(void* ptr) //socket
 
 				break;
 			
-			case CLIENT_GET:
+			case CLIENT_GET:;
 
 				char* gfile_name = recvString(arg->client_socket); //Receber o nome do arquivo a ser enviado
 				
 				char* path = (char *)calloc( 1, (strlen(gfile_name) + strlen(arg->diretorio) + 1));
 				strcpy(path, arg->diretorio);
 				strcat(path, gfile_name);
+				//printf("Path que sai: %s", path);
 
+				/*pthread_t *thread_file = calloc(1, sizeof(pthread_t));
+
+				sendFiles_arg *farg = (sendFiles_arg*)calloc(1, sizeof(sendFiles_arg));
+				farg->path = path;
+				farg->socket = arg->client_socket;
+
+				printf("Antes do sendFile\n");
+				pthread_create(thread_file, NULL, sendFilet, farg);*/
 				sendFile(path, arg->client_socket);
-								
+				//printf("Depois do sendFile\n");
 				break;
 
-			case CLIENT_SEND:
+			case CLIENT_SEND:;
+				
+				char* sfile_name = recvString(arg->client_socket); //Receber o nome do arquivo a ser enviado
 
+				char* spath = (char *)calloc( 1, (strlen(sfile_name) + strlen(arg->diretorio) + 1));
+				strcpy(spath, arg->diretorio);
+				strcat(spath, sfile_name);
+
+				recvFile(spath, arg->client_socket); //Cria o arquivo no diretorio
+				//printf("Terminou recvFile do Send\n");
+				sendInt(ADD_LIST, arg->server_socket); //Pedir pra adicionar o novo arquivo na lista
+				sendString(sfile_name, arg->server_socket);
+				sendInt(client->id, arg->server_socket);
+				//printf("Terminou o CLIENT_SEND\n");
 				break;
         }
     }
@@ -129,6 +169,65 @@ void *clientServer(void* ptr)
 	return (void*)0;
 }
 
+//Função da conexao da thread com o get
+void* thread_get_Connect(void *ptr)
+{
+	connectClient *arg = (connectClient*)ptr;
+
+	int client_socket;
+	struct sockaddr_in dest;
+
+	client_socket = socket(AF_INET, SOCK_STREAM, 0);
+
+	memset(&dest, 0, sizeof(dest));                
+	dest.sin_family = AF_INET;
+	dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
+	dest.sin_port = htons(  arg->porta );                
+
+	int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
+
+	if( connectResult == - 1 ){
+
+		printf("CLIENT ERROR: %s\n", strerror(errno));
+
+		return (void*)0;
+	}
+	
+	sendInt(CLIENT_GET, client_socket);
+	sendString(arg->file_name, client_socket);
+	printf("Enviado o nome do arquivo\n");
+
+	srand( time( NULL ));
+	double randomD = randomDouble(0,100);
+
+	char new_name[1024];
+
+	sprintf(new_name, "%s_client%d_%lf", arg->file_name, arg->id, randomD);
+
+	char* path = (char *)calloc( 1, (strlen(new_name) + strlen(arg->diretorio) + 1));
+	strcpy(path, arg->diretorio);
+	strcat(path, new_name);
+
+	recvFile(path, client_socket); //Cria o arquivo no diretorio
+	sendInt(ADD_LIST, arg->server_socket); //Pedir pra adicionar o novo arquivo na lista
+	sendString(new_name, arg->server_socket);
+	sendInt(arg->id, arg->server_socket);
+
+	return (void*)0;
+}
+
+//Função da conexao da thread com o send
+void* thread_send_Connect(void *ptr)
+{
+	thread_of_send * arg = (thread_of_send*)ptr;
+	//printf("AAAAAAAAA socket: %d  path: %s\n", arg->client_socket, arg->path);
+
+	sendFile(arg->path, arg->client_socket);
+
+
+	return (void*)0;
+}
+
 //Fica no cliente para o usuario digitar o comando desejado
 int whichFunction(int server_socket, char* diretorio, int id)
 {
@@ -139,6 +238,7 @@ int whichFunction(int server_socket, char* diretorio, int id)
 		printf("-");
 
 		scanf("%s", command);
+		printf("command : %s\n", command);
 
 		if(strcmp(command, "exit") == 0)
 		{
@@ -153,8 +253,8 @@ int whichFunction(int server_socket, char* diretorio, int id)
 
 			if(copy == NULL) //Verifica se tem espaço
 			{
-				printf("Não há espaço suficiente");
-				break;
+				printf("Não há espaço suficiente\n");
+				continue;
 			}
 
 			char *file_name = strtok(copy, SPACE);
@@ -173,8 +273,20 @@ int whichFunction(int server_socket, char* diretorio, int id)
 					file_name = strtok(NULL, SPACE);
 					continue;
 				}
+
+				connectClient *arg = (connectClient*)calloc(1, sizeof(connectClient));
+				arg->id = id;
+				arg->server_socket = server_socket;
+				arg->ip = recvInt(server_socket);
+				arg->porta = recvInt(server_socket);
+				arg->file_name = file_name;
+				arg->diretorio = diretorio;
+
+				pthread_t *getClient_thread = (pthread_t*)calloc(1, sizeof(pthread_t));
+
+				pthread_create(getClient_thread, NULL, thread_get_Connect , arg);
 				
-				int ip = recvInt(server_socket);
+				/*int ip = recvInt(server_socket);
 				int porta = recvInt(server_socket);				 
 
 				int client_socket;
@@ -182,47 +294,144 @@ int whichFunction(int server_socket, char* diretorio, int id)
 
 				client_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-				memset(&dest, 0, sizeof(dest));                /* zero the struct */
+				memset(&dest, 0, sizeof(dest));                
 				dest.sin_family = AF_INET;
-				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* set destination IP number - localhost, 127.0.0.1*/
-				dest.sin_port = htons(  porta );                /* set destination port number */
+				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
+				dest.sin_port = htons(  porta );                
 
 				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
 
 				if( connectResult == - 1 ){
 
-						printf("CLIENT ERROR: %s\n", strerror(errno));
+					printf("CLIENT ERROR: %s\n", strerror(errno));
 
-						return EXIT_FAILURE;
+					return EXIT_FAILURE;
 				}
 				
 				sendInt(CLIENT_GET, client_socket);
 				sendString(file_name, client_socket);
+				printf("Enviado o nome do arquivo\n");
 
-				//char *new_name = ;
+				srand( time( NULL ));
+				double randomD = randomDouble(0,100);
 
-				char* path = (char *)calloc( 1, (strlen(file_name) + strlen(diretorio) + 1));
+				char new_name[1024];
+
+				sprintf(new_name, "%s_client%d_%lf", file_name, id, randomD);
+
+				char* path = (char *)calloc( 1, (strlen(new_name) + strlen(diretorio) + 1));
 				strcpy(path, diretorio);
-				strcat(path, file_name);
+				strcat(path, new_name);
 
 				recvFile(path, client_socket); //Cria o arquivo no diretorio
-
 				sendInt(ADD_LIST, server_socket); //Pedir pra adicionar o novo arquivo na lista
-				sendString(file_name, server_socket);
-				sendInt(id, server_socket);
+				sendString(new_name, server_socket);
+				sendInt(id, server_socket);*/
 
 				file_name = strtok(NULL, SPACE);
 			}
 			free(file_name);
-
-			//Client recebe o os dados do arquivo e cria um novo arquivo com nome+hora com os dados
-			
-			//Cliente adiciona arquivo em list
-
 		}
 		else if(strcmp(command, "send") == 0)
 		{
-			sendInt(COMMAND_SEND, server_socket);
+			//printf("Entrou no senddddddddddd\n");
+			char *ID = (char*)calloc(ID_MAX, sizeof(char));
+			scanf("%s ", ID); //Pega o ID do cliente que vai receber os arquivos
+
+			int cid = atoi(ID);
+
+			printf("%d\n", cid);
+
+			sendInt(WHO_IS_CLIENT, server_socket); //Entrar no case WHO IS CLIENT no servidor
+			sendInt(cid, server_socket); //Enviar id do cliente que vai receber os arquivos
+
+			if(recvInt(server_socket) == -1) //Sai caso não exista o cliente
+				{
+					printf("Cliente de id: %d não existe\n", id);
+					continue;
+				}
+
+			Client *rclient = recvClient(server_socket); //Recebe o clinte do id digitado
+			//printf("DAdos do client: id:%d  nFiles:%d  Port:%d\n", rclient->id, rclient->nFiles, rclient->porta);
+			char *buffer = getTerminalCommand();
+			char *copy = strdup(buffer);
+
+			if(copy == NULL)
+			{
+				printf("Não há espaço suficiente\n");
+				continue;
+			}
+
+			char *sfile_name = strtok(copy, SPACE);
+
+			while(sfile_name != NULL)
+			{
+				if(sfile_name[strlen(sfile_name)-1] == '\n')
+					sfile_name[strlen(sfile_name)-1] = '\0';
+
+				//printf("Passou do if\n");
+				//printf("File_name : %s\n", sfile_name);
+
+				/*connectClient *arg = (connectClient*)calloc(1, sizeof(connectClient));
+				arg->id = id;
+				arg->server_socket = server_socket;
+				arg->ip = rclient->ip;
+				arg->porta = rclient->porta;
+				arg->file_name = sfile_name;
+				arg->diretorio = diretorio;*/
+
+						 
+				int client_socket;
+				struct sockaddr_in dest;
+
+				client_socket = socket(AF_INET, SOCK_STREAM, 0);
+
+				memset(&dest, 0, sizeof(dest));                
+				dest.sin_family = AF_INET;
+				dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
+				dest.sin_port = htons(  rclient->porta );                
+
+				int connectResult = connect(client_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
+
+				if( connectResult == - 1 ){
+
+					printf("CLIENT ERROR: %s\n", strerror(errno));
+
+					return EXIT_FAILURE;
+				}
+
+				srand( time( NULL ));
+				double randomD = randomDouble(0,100);
+
+				char new_name[1024];
+
+				sprintf(new_name, "%s_client%d_%lf", sfile_name, id, randomD);
+
+				char* path = (char *)calloc( 1, (strlen(sfile_name) + strlen(diretorio) + 1));
+				strcpy(path, diretorio);
+				strcat(path, sfile_name);
+				//printf("Path para o envio: %s\n", path);
+				sendInt(CLIENT_SEND, client_socket);
+				//printf("File_name : %s\n", new_name);
+				sendString(new_name, client_socket); //Enviar nome do arquivo a ser enviado		
+				//printf("Path : %s\n", path);
+
+				thread_of_send *ptr = (thread_of_send*)calloc(1, sizeof(thread_of_send));
+				ptr->path = path;
+				ptr->client_socket = client_socket;
+
+				pthread_t *sendClient_thread = (pthread_t*)calloc(1, sizeof(pthread_t));
+
+				pthread_create(sendClient_thread, NULL, thread_send_Connect , ptr);
+				//printf("socket: %d  path: %s\n", client_socket, path);
+
+				//sendFile(path, client_socket);
+				//printf("File terminado\n");
+
+				sfile_name = strtok(NULL, SPACE);
+				//printf("File_name atualizado: %s\n", sfile_name);
+			}
+			free(sfile_name);
 		}
 		else if((strcmp(command, "del") == 0) || (strcmp(command, "delete") == 0) || (strcmp(command, "rmv") == 0))
 		{
@@ -231,8 +440,8 @@ int whichFunction(int server_socket, char* diretorio, int id)
 
 			if(copy == NULL)
 			{
-				printf("Não há espaço suficiente");
-				break;
+				printf("Não há espaço suficiente\n");
+				continue;
 			}
 
 			char *file_name = strtok(copy, SPACE);
@@ -287,11 +496,12 @@ int whichFunction(int server_socket, char* diretorio, int id)
 			sendInt(COMMAND_LIST, server_socket);
 
 			int n = recvInt(server_socket);
-
+			//printf("entrei list - %d\n", n);
 			for(int i = 0; i < n; i++)
 			{
+				//printf("Fooooooor\n");
 				Client* client = recvClient(server_socket);
-
+				//printf("Fooooooor222222\n");
 				ClientFile *file = client->data;
 				printf("Cliente %d:\n", client->id);
 				while(file != NULL)
@@ -300,10 +510,29 @@ int whichFunction(int server_socket, char* diretorio, int id)
 					file = file->next;
 				}
 			}
+			printf("3\n");
 		}
 		else if(strcmp(command, "stats") == 0)
 		{
 			sendInt(COMMAND_STATS, server_socket);
+
+			int n = recvInt(server_socket);
+
+			for(int i = 0; i < n; i++)
+			{
+				Client* client = recvClient(server_socket);
+
+				ClientFile *file = client->data;
+				printf("Cliente %d:\n", client->id);
+				printf("Qtd files = %d\n", client->nFiles);
+        		printf("Porta = %d\n", client->porta);
+        		printf("\n");
+				/*while(file != NULL)
+				{
+					printf(" %s\n", file->name);
+					file = file->next;
+				}*/
+			}
 		}
 		else
 		{
